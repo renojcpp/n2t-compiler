@@ -2,6 +2,7 @@ package jack_parser
 
 import (
 	"errors"
+	"fmt"
 	"io"
 
 	jack_tokenizer "github.com/renojcpp/n2t-compiler/tokenizer"
@@ -12,7 +13,7 @@ type tokenpair struct {
 	st jack_tokenizer.TokenSubtype
 }
 
-const typePair = []tokenpair{
+var typePair = []tokenpair{
 	{jack_tokenizer.KEYWORD, jack_tokenizer.KW_INT},
 	{jack_tokenizer.KEYWORD, jack_tokenizer.KW_CHAR},
 	{jack_tokenizer.KEYWORD, jack_tokenizer.KW_BOOLEAN},
@@ -40,7 +41,7 @@ func (s *parser) process(pairs []tokenpair) {
 		io.WriteString(s.writer, (s.current().Lexeme))
 		return
 	}
-	s.err = errors.New("grammar error: " + s.current().Lexeme)
+	s.err = fmt.Errorf("%d: grammar error: %s", s.current().Line, s.current().Lexeme)
 }
 
 func (s *parser) matches(pairs []tokenpair) bool {
@@ -88,14 +89,14 @@ func (s *parser) helper_typeVarName() {
 	s.process([]tokenpair{
 		{jack_tokenizer.IDENTIFIER, jack_tokenizer.NONE},
 	})
-
 }
+
 // compiles a class
 func (s *parser) class() {
 	io.WriteString(s.writer, "<class>")
-	s.process([]tokenpair{tokenpair{jack_tokenizer.KEYWORD, jack_tokenizer.KW_CLASS}})
-	s.process([]tokenpair{tokenpair{jack_tokenizer.IDENTIFIER, jack_tokenizer.NONE}})
-	s.process([]tokenpair{tokenpair{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_LEFT_BRACE}})
+	s.process([]tokenpair{{jack_tokenizer.KEYWORD, jack_tokenizer.KW_CLASS}})
+	s.process([]tokenpair{{jack_tokenizer.IDENTIFIER, jack_tokenizer.NONE}})
+	s.process([]tokenpair{{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_LEFT_BRACE}})
 	for s.matches([]tokenpair{
 		{jack_tokenizer.KEYWORD, jack_tokenizer.KW_STATIC},
 		{jack_tokenizer.KEYWORD, jack_tokenizer.KW_FIELD},
@@ -111,23 +112,27 @@ func (s *parser) class() {
 		s.subroutine()
 	}
 
-	s.process([]tokenpair{tokenpair{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_RIGHT_BRACE}})
+	s.process([]tokenpair{{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_RIGHT_BRACE}})
 	io.WriteString(s.writer, "</class>")
 }
 
 // Compiles a static variable declaration or a field declaration
 func (s *parser) classVarDec() {
 	io.WriteString(s.writer, "<classVarDec>")
-	s.process([]tokenpair{tokenpair{jack_tokenizer.KEYWORD, jack_tokenizer.KW_STATIC}, {jack_tokenizer.KEYWORD, jack_tokenizer.KW_FIELD}})
+	s.process([]tokenpair{
+		{jack_tokenizer.KEYWORD, jack_tokenizer.KW_STATIC},
+		{jack_tokenizer.KEYWORD, jack_tokenizer.KW_FIELD},
+	})
+
 	s.helper_typeVarName()
 	// (',' varName)
-	for s.matches([]tokenpair{tokenpair{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_COMMA}}) {
+	for s.matches([]tokenpair{{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_COMMA}}) {
 		s.process([]tokenpair{
-			tokenpair{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_COMMA},
+			{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_COMMA},
 		})
-		s.process([]tokenpair{tokenpair{jack_tokenizer.IDENTIFIER, jack_tokenizer.NONE}})
+		s.process([]tokenpair{{jack_tokenizer.IDENTIFIER, jack_tokenizer.NONE}})
 	}
-	s.process([]tokenpair{tokenpair{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_SEMICOLON}})
+	s.process([]tokenpair{{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_SEMICOLON}})
 	io.WriteString(s.writer, "</classVarDec>")
 }
 
@@ -135,7 +140,7 @@ func (s *parser) classVarDec() {
 func (s *parser) subroutine() {
 	io.WriteString(s.writer, "<subroutineDec>")
 	s.process([]tokenpair{
-		tokenpair{jack_tokenizer.KEYWORD, jack_tokenizer.KW_CONSTRUCTOR},
+		{jack_tokenizer.KEYWORD, jack_tokenizer.KW_CONSTRUCTOR},
 		{jack_tokenizer.KEYWORD, jack_tokenizer.KW_FUNCTION},
 		{jack_tokenizer.KEYWORD, jack_tokenizer.KW_METHOD},
 	})
@@ -182,7 +187,10 @@ func (s *parser) parameters() {
 			for s.matches([]tokenpair{
 				{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_COMMA},
 			}) {
-				processTypeVarName();
+				s.matches([]tokenpair{
+					{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_COMMA},
+				})
+				processTypeVarName()
 			}
 		}
 	}
@@ -201,7 +209,7 @@ func (s *parser) subroutineBody() {
 	}) {
 		s.varDec()
 	}
-	
+
 	s.statements()
 
 	io.WriteString(s.writer, "</subroutineBody>")
@@ -223,14 +231,14 @@ func (s *parser) varDec() {
 			{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_COMMA},
 		})
 		s.process([]tokenpair{
-			{jack_tokenizer.IDENTIFIER, NONE},
+			{jack_tokenizer.IDENTIFIER, jack_tokenizer.NONE},
 		})
 	}
 
 	s.process([]tokenpair{
 		{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_SEMICOLON},
 	})
-	
+
 	io.WriteString(s.writer, "</varDec>")
 }
 
@@ -256,21 +264,21 @@ func (s *parser) statements() {
 				s.ifStatement()
 			case s.matches([]tokenpair{states[2]}):
 				s.while()
-			case s.matches([]tokenpair(states[4])):
+			case s.matches([]tokenpair{states[4]}):
 				s.do()
-			case s.matches([]tokenpair(states[5])):
+			case s.matches([]tokenpair{states[5]}):
 				s.returnStatement()
 			}
 		}
 		io.WriteString(s.writer, "</statements>")
 	} else {
-		s.err = errors.New("unexpected lexeme " + s.current().Lexeme())
+		s.err = errors.New("unexpected lexeme " + s.current().Lexeme)
 	}
 }
 
 // Compiles a let statement.
 func (s *parser) letStatement() {
-	io.writeString(s.writer, "<letStatement>")
+	io.WriteString(s.writer, "<letStatement>")
 	s.process([]tokenpair{
 		{jack_tokenizer.KEYWORD, jack_tokenizer.KW_LET},
 	})
@@ -279,16 +287,16 @@ func (s *parser) letStatement() {
 	})
 
 	if s.matches([]tokenpair{
-		{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_LEFT_BRACE},
+		{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_LEFT_BRACK},
 	}) {
-		s.process([]token{
-			{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_LEFT_BRACE},
+		s.process([]tokenpair{
+			{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_LEFT_BRACK},
 		})
 
 		s.expression()
 
-		s.process([]token{
-			{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_RIGHT_BRACE},
+		s.process([]tokenpair{
+			{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_RIGHT_BRACK},
 		})
 	}
 
@@ -302,13 +310,13 @@ func (s *parser) letStatement() {
 		{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_SEMICOLON},
 	})
 
-	io.writeString(s.writer, "</letStatement>")
+	io.WriteString(s.writer, "</letStatement>")
 }
 
 // Compiles an if statement
 // possibly with a trailing else clause
 func (s *parser) ifStatement() {
-	io.writeString(s.writer, "<ifStatement>")
+	io.WriteString(s.writer, "<ifStatement>")
 	s.process([]tokenpair{
 		{jack_tokenizer.KEYWORD, jack_tokenizer.KW_IF},
 	})
@@ -337,7 +345,7 @@ func (s *parser) ifStatement() {
 		{jack_tokenizer.KEYWORD, jack_tokenizer.KW_ELSE},
 	}) {
 		s.process([]tokenpair{
-			{jack_tokenizer.KEYWORD, KW_ELSE},
+			{jack_tokenizer.KEYWORD, jack_tokenizer.KW_ELSE},
 		})
 
 		s.process([]tokenpair{
@@ -350,75 +358,232 @@ func (s *parser) ifStatement() {
 			{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_RIGHT_PAREN},
 		})
 	}
-	io.writeString(s.writer, "</ifStatement>")
+	io.WriteString(s.writer, "</ifStatement>")
 }
 
 // Compiles a while statement
 func (s *parser) while() {
 	io.WriteString(s.writer, "<whileStatement>")
-	s.process([]tokenpair{tokenpair{jack_tokenizer.KEYWORD, jack_tokenizer.KW_WHILE}})
-	s.process([]tokenpair{tokenpair{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_LEFT_PAREN}})
+	s.process([]tokenpair{{jack_tokenizer.KEYWORD, jack_tokenizer.KW_WHILE}})
+	s.process([]tokenpair{{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_LEFT_PAREN}})
 	s.expression()
-	s.process([]tokenpair{tokenpair{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_LEFT_PAREN}})
-	s.process([]tokenpair{tokenpair{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_RIGHT_BRACE}})
+	s.process([]tokenpair{{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_RIGHT_PAREN}})
+	s.process([]tokenpair{{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_LEFT_BRACE}})
 	s.statements()
-	s.process([]tokenpair{tokenpair{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_RIGHT_BRACE}})
+	s.process([]tokenpair{{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_RIGHT_BRACE}})
 	io.WriteString(s.writer, "</whileStatement>")
 }
 
 // Compiles a do statement
 func (s *parser) do() {
 	io.WriteString(s.writer, "<doStatement>")
-	s.process([]tokenpair{tokenpair{jack_tokenizer.KEYWORD, jack_tokenizer.KW_DO}})
-	s.subroutine()
-	s.process([]tokenpair{tokenpair{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_PERIOD}})
+	s.process([]tokenpair{{jack_tokenizer.KEYWORD, jack_tokenizer.KW_DO}})
+	s.subroutineCall()
+	s.process([]tokenpair{{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_SEMICOLON}})
 	io.WriteString(s.writer, "</doStatement>")
 }
 
 // Compiles a return statement
 func (s *parser) returnStatement() {
-	io.WriteString(s.writer, "<returnStatement>")
-	s.process([]tokenpair{tokenpair{jack_tokenizer.KEYWORD, jack_tokenizer.KW_RETURN}})
-	peek, err := s.peek()
-	if err != nil {
-		s.err = err
+	op := []tokenpair{
+		{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_PLUS},
+		{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_MINUS},
+		{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_ASTERISK},
+		{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_SLASH},
+		{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_ASTERISK},
+		{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_PIPE},
+		{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_LESS_THAN},
+		{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_GREATER_THAN},
+		{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_EQUALS},
 	}
 
+	io.WriteString(s.writer, "<returnStatement>")
+	s.process([]tokenpair{{jack_tokenizer.KEYWORD, jack_tokenizer.KW_RETURN}})
+	if s.matches(op) {
+		s.expression()
+	}
 	io.WriteString(s.writer, "</returnStatement>")
 }
 
 // Compiles an expression
 func (s *parser) expression() {
+	op := []tokenpair{
+		{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_PLUS},
+		{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_MINUS},
+		{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_ASTERISK},
+		{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_SLASH},
+		{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_ASTERISK},
+		{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_PIPE},
+		{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_LESS_THAN},
+		{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_GREATER_THAN},
+		{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_EQUALS},
+	}
 	io.WriteString(s.writer, "<expression>")
-
+	s.term()
+	for s.matches(op) {
+		s.process(op)
+		s.term()
+	}
 	io.WriteString(s.writer, "</expression>")
 }
 
 // Compiles a term. If the current token is an
 // identifier, the routine must resolve it
 // into a variable, an array element, or a
-// subroutine call. A single lookahead token,
+// subroutine call. A single lookahead tokezn,
 // which may be [, (, or ., suffices to distinguish
 // between the possibilities.
 // Any other token is not part of this term
 // and should not be advanced over.
 func (s *parser) term() {
+	io.WriteString(s.writer, "<term>")
+	switch s.current().Tokentype {
+	case jack_tokenizer.IDENTIFIER:
+		// variable, array element or subroutine
+		peek, err := s.peek()
+		if err != nil {
+			s.err = nil
+		} else {
+			switch peek.Subtype {
+			case jack_tokenizer.SYM_LEFT_PAREN:
+			case jack_tokenizer.SYM_PERIOD:
+				s.subroutineCall()
+			case jack_tokenizer.SYM_LEFT_BRACE:
+				// varname[expression]
+				s.process([]tokenpair{
+					{jack_tokenizer.IDENTIFIER, jack_tokenizer.NONE},
+				})
+				s.process([]tokenpair{
+					{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_LEFT_BRACK},
+				})
+				s.expression()
+				s.process([]tokenpair{
+					{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_RIGHT_BRACK},
+				})
+			default:
+				s.process([]tokenpair{
+					{jack_tokenizer.IDENTIFIER, jack_tokenizer.NONE},
+				})
+			}
 
+		}
+	case jack_tokenizer.INT_CONSTANT:
+		s.process([]tokenpair{
+			{jack_tokenizer.INT_CONSTANT, jack_tokenizer.NONE},
+		})
+	case jack_tokenizer.STRING_CONSTANT:
+		s.process([]tokenpair{
+			{jack_tokenizer.STRING_CONSTANT, jack_tokenizer.NONE},
+		})
+	case jack_tokenizer.SYMBOL:
+		switch s.current().Subtype {
+		case jack_tokenizer.SYM_LEFT_PAREN:
+			s.process([]tokenpair{
+				{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_LEFT_PAREN},
+			})
+			s.expression()
+			s.process([]tokenpair{
+				{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_RIGHT_PAREN},
+			})
+		case jack_tokenizer.SYM_MINUS:
+		case jack_tokenizer.SYM_TILDE:
+			s.process([]tokenpair{
+				{jack_tokenizer.SYMBOL, s.current().Subtype},
+			})
+			s.term()
+		}
+	case jack_tokenizer.KEYWORD:
+		switch s.current().Subtype {
+		case jack_tokenizer.KW_TRUE:
+		case jack_tokenizer.KW_FALSE:
+		case jack_tokenizer.KW_NULL:
+		case jack_tokenizer.KW_THIS:
+			s.process([]tokenpair{
+				{jack_tokenizer.KEYWORD, s.current().Subtype},
+			})
+		}
+	}
+
+	io.WriteString(s.writer, "</term>")
+}
+
+func (s *parser) subroutineCall() {
+	io.WriteString(s.writer, "<subroutineCall>")
+	s.process([]tokenpair{
+		{jack_tokenizer.IDENTIFIER, jack_tokenizer.NONE},
+	})
+
+	t := s.current()
+	s.process([]tokenpair{
+		{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_LEFT_PAREN},
+		{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_PERIOD},
+	})
+
+	switch t.Subtype {
+	case jack_tokenizer.SYM_PERIOD:
+		s.process([]tokenpair{
+			{jack_tokenizer.IDENTIFIER, jack_tokenizer.NONE},
+		})
+		s.process([]tokenpair{
+			{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_LEFT_PAREN},
+		})
+
+		fallthrough
+	case jack_tokenizer.SYM_LEFT_PAREN:
+		s.expressionList()
+		s.process([]tokenpair{
+			{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_RIGHT_PAREN},
+		})
+	}
+	io.WriteString(s.writer, "</subroutineCall>")
 }
 
 // Compiles a (possibly empty) comma-
 // separated list of expression. Returns
 // the number of expressions in the list
 func (s *parser) expressionList() int {
+	begTerm := []tokenpair{
+		{jack_tokenizer.STRING_CONSTANT, jack_tokenizer.NONE},
+		{jack_tokenizer.INT_CONSTANT, jack_tokenizer.NONE},
+		{jack_tokenizer.IDENTIFIER, jack_tokenizer.NONE},
+		{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_PLUS},
+		{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_LEFT_PAREN},
+		{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_MINUS},
+		{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_TILDE},
+		{jack_tokenizer.KEYWORD, jack_tokenizer.KW_TRUE},
+		{jack_tokenizer.KEYWORD, jack_tokenizer.KW_FALSE},
+		{jack_tokenizer.KEYWORD, jack_tokenizer.KW_NULL},
+		{jack_tokenizer.KEYWORD, jack_tokenizer.KW_THIS},
+	}
+	count := 0
+	io.WriteString(s.writer, "<expressionList>")
+	if s.matches(begTerm) {
+		count++
+		s.expression()
+		for s.matches([]tokenpair{
+			{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_COMMA},
+		}) {
+			count++
+			s.process([]tokenpair{
+				{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_COMMA},
+			})
+			s.expression()
+		}
+	}
+	io.WriteString(s.writer, "</expressionList>")
 
+	return count
 }
 
 // x* : 0 or more
 // ? one or more
 // x y x followed by y
-// x | y x or yhelpe
-func ParseGrammar(tokens []jack_tokenizer.Token) {
-	parser := NewParser(tokens)
+// x | y x or y
+func ParseGrammar(tokens []jack_tokenizer.Token) func(io.Writer) error {
+	return func(w io.Writer) error {
+		parser := NewParser(tokens, w)
 
-	return func()
+		err := parser.parse()
+		return err
+	}
 }
