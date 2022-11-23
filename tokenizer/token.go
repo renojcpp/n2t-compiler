@@ -21,9 +21,11 @@ type TokenType int
 const (
 	ERROR = -1
 )
+
+//go:generate string -type=TokenType
 const (
-	KEYWORD TokenType = 0
-	SYMBOL            = iota
+	KEYWORD TokenType = iota
+	SYMBOL
 	INT_CONSTANT
 	STRING_CONSTANT
 	IDENTIFIER
@@ -31,6 +33,7 @@ const (
 
 type TokenSubtype int
 
+//go:generate stringer -type=TokenSubtype
 const (
 	UNKNOWN TokenSubtype = -1
 	NONE    TokenSubtype = iota

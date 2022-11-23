@@ -1,4 +1,4 @@
-package jack_tokenwriter
+package jack_parser
 
 import (
 	"fmt"
@@ -9,13 +9,13 @@ import (
 	jack_tokenizer "github.com/renojcpp/n2t-compiler/tokenizer"
 )
 
-func TestCreateXMLWriter(t *testing.T) {
+func TestParseGrammar(t *testing.T) {
 	tests := []struct {
 		name string
 	}{
 		// TODO: Add test cases
-		// {"/home/jr/school/cs3650/nand2tetris/projects/10/ArrayTest"},
-		// {"/home/jr/school/cs3650/nand2tetris/projects/10/ExpressionLessSquare"},
+		{"/home/jr/school/cs3650/nand2tetris/projects/10/ArrayTest"},
+		{"/home/jr/school/cs3650/nand2tetris/projects/10/ExpressionLessSquare"},
 		{"/home/jr/school/cs3650/nand2tetris/projects/10/Square"},
 	}
 	for _, tt := range tests {
@@ -38,9 +38,13 @@ func TestCreateXMLWriter(t *testing.T) {
 						t.Errorf("failed to tokenize: %s", err)
 					}
 
-					toOut := CreateXMLWriter(tokens)
+					toOut := ParseGrammar(tokens)
 					fmt.Println("outputting")
-					toOut(os.Stdout)
+					err = toOut(os.Stdout)
+
+					if err != nil {
+						t.Errorf("%s", err.Error())
+					}
 				}
 			}
 		})
