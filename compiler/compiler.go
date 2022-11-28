@@ -645,7 +645,7 @@ func (s *parser) SubroutineCall() {
 	case jack_tokenizer.SYM_LEFT_PAREN:
 		n := s.ExpressionList()
 		s.symbolHelper(jack_tokenizer.SYM_RIGHT_PAREN)
-		s.vmWriter.WriteCall(fmt.Sprintf("%s.%s", mainName, secondaryName), n)
+		s.vmWriter.WriteCall(fmt.Sprintf("%s%s", mainName, secondaryName), n)
 	}
 }
 

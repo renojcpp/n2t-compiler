@@ -61,7 +61,7 @@ func (s *VMWriter) WriteCall(name string, nArgs int) {
 }
 
 func (s *VMWriter) WriteFunction(name Name, nvars int) {
-	io.WriteString(s, fmt.Sprintf("function %s %s\n", name, nvars))
+	io.WriteString(s, fmt.Sprintf("function %s %d\n", name, nvars))
 }
 
 func (s *VMWriter) WriteReturn() {

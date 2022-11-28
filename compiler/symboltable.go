@@ -44,7 +44,6 @@ var subtypeToOp = map[jack_tokenizer.TokenSubtype]ArithmeticType{
 }
 
 type SymbolTable struct {
-	parent      *SymbolTable
 	staticTable map[Name]tableentry
 	fieldTable  map[Name]tableentry
 	argTable    map[Name]tableentry
