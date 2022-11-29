@@ -393,24 +393,33 @@ func (s *parser) Statements() {
 func (s *parser) LetStatement() {
 	s.keywordHelper(jack_tokenizer.KW_LET)
 	token, _ := s.identifierHelper()
-
+	res := s.resolveSymbol(token.Lexeme)
+	isarr := false
 	if s.matches([]tokenpair{
 		{jack_tokenizer.SYMBOL, jack_tokenizer.SYM_LEFT_BRACK},
 	}) {
+		isarr = true
 		s.symbolHelper(jack_tokenizer.SYM_LEFT_BRACK)
 
+		s.vmWriter.WritePush(fieldtoSegment[res.symbol], res.index)
 		s.Expression()
-
+		s.vmWriter.WriteArithmetic(ADD)
 		s.symbolHelper(jack_tokenizer.SYM_RIGHT_BRACK)
 	}
 
 	s.symbolHelper(jack_tokenizer.SYM_EQUALS)
 
 	s.Expression()
-	// pop symbolArgName index
+	if isarr {
+		s.vmWriter.WritePop(TEMP, 0)
+		s.vmWriter.WritePop(POINTER, 1)
+		s.vmWriter.WritePush(TEMP, 0)
+		s.vmWriter.WritePop(THAT, 0)
+	} else {
+		// pop symbolArgName index
 
-	res := s.resolveSymbol(token.Lexeme)
-	s.vmWriter.WritePop(fieldtoSegment[res.symbol], res.index)
+		s.vmWriter.WritePop(fieldtoSegment[res.symbol], res.index)
+	}
 	s.symbolHelper(jack_tokenizer.SYM_SEMICOLON)
 }
 
@@ -566,6 +575,8 @@ func (s *parser) Term() {
 				s.Expression()
 				s.vmWriter.WriteArithmetic(ADD)
 				s.symbolHelper(jack_tokenizer.SYM_RIGHT_BRACK)
+				s.vmWriter.WritePop(POINTER, 1)
+				s.vmWriter.WritePush(THAT, 0)
 			default:
 				token, _ := s.identifierHelper()
 				resolved := s.resolveSymbol(token.Lexeme)
